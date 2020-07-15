@@ -203,6 +203,13 @@ func getAPITimeoutSeconds() (int64, error) {
 	return int64(10), nil
 }
 
+func getAPIRetryMax() (int, error) {
+	if len(os.Getenv("FLINK_API_MAX_RETRY")) > 0 {
+		return strconv.Atoi(os.Getenv("FLINK_API_MAX_RETRY"))
+	}
+	return int(10), nil
+}
+
 func main() {
 	flinkBaseURL := os.Getenv("FLINK_BASE_URL")
 	if len(flinkBaseURL) == 0 {
@@ -220,6 +227,12 @@ func main() {
 	}
 
 	client := retryablehttp.NewClient()
+	flinkAPIMaxRetry, err := getAPIRetryMax()
+	if err != nil {
+		log.Fatalf("`FLINK_API_MAX_RETRY=%v` environment variable could not be parsed to an integer", os.Getenv("FLINK_API_MAX_RETRY"))
+		os.Exit(1)
+	}
+	client.RetryMax = flinkAPIMaxRetry - 1
 	client.HTTPClient = &http.Client{
 		Timeout: time.Second * time.Duration(flinkAPITimeoutSeconds),
 	}
@@ -237,7 +250,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "Flink Deployer"
 	app.Description = "A Go command-line utility to facilitate deployments to Apache Flink"
-	app.Version = "1.4.0"
+	app.Version = "1.0.0"
 
 	app.Commands = []cli.Command{
 		{
